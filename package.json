@@ -1,0 +1,38 @@
+{
+  "name": "back-appsync-boilerplate",
+  "version": "1.0.1",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "bun run rimraf dist",
+    "test": "jest",
+    "cdk": "cdk",
+    "deploy:all": "bun run clean && bun run build && bun run cdk deploy --all",
+    "deploy:dev": "bun run clean && bun run build && bun run cdk deploy prevalentware-boilerplate-stack-dev --require-approval never",
+    "deploy:test": "bun run clean && bun run build && bun run cdk deploy prevalentware-boilerplate-stack-test --require-approval never",
+    "deploy:prod": "bun run clean && bun run build && bun run cdk deploy prevalentware-boilerplate-stack-prod --require-approval never",
+    "deploy:pipeline": "bun run clean && bun run build && bun run cdk deploy prevalentware-boilerplate-stack-cicd",
+    "destroy": "bun run cdk destroy",
+    "synth": "bun run cdk synth > template.yaml",
+    "lint": "eslint \"./**/*.ts\"",
+    "lint:fix": "eslint \"./**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.138.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/node": "^20.12.7",
+    "aws-cdk": "^2.173.0",
+    "constructs": "^10.3.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "prettier": "^3.4.2",
+    "rimraf": "^5.0.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.23.0"
+  }
+}
