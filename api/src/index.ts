@@ -1,28 +1,56 @@
 import { ApolloServer } from '@apollo/server';
-import { startServerAndCreateLambdaHandler } from '@as-integrations/aws-lambda';
-import { getDB } from './db';
-import { getSession } from './auth/getSession';
-import { resolverArray, typesArray } from './models';
-import { middlewareFunctions, requestHandler } from './middleware';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { typeDefs } from './schema';
+import { resolvers } from './resolvers';
+import { PrismaClient } from '@prisma/client';
 import { Context } from './types';
+import { getSession } from './auth/getSession';
+
+const prisma = new PrismaClient();
 
 const server = new ApolloServer<Context>({
-  typeDefs: typesArray,
-  resolvers: resolverArray,
-  introspection: true,
+  typeDefs,
+  resolvers,
 });
 
-export const handler = startServerAndCreateLambdaHandler(
-  server,
-  requestHandler,
-  {
-    context: async ({ event }) => {
-      const db = await getDB();
-      const sessionToken: string | undefined =
-        event.headers['next-auth.session-token'];
-      const session = await getSession(db, sessionToken);
-      return { db, session };
+const startServer = async () => {
+  const { url } = await startStandaloneServer(server, {
+    context: async ({ req }) => {
+      // Crear el contexto base con prisma
+      const context: Context = { prisma };
+
+      // Extraer el token del header
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return context;
+      }
+
+      const token = authHeader.split(' ')[1];
+      if (!token) {
+        return context;
+      }
+
+      try {
+        // Obtener la sesión usando la nueva función getSession
+        const session = await getSession(prisma, token);
+        if (session) {
+          context.session = session;
+          context.user = session.User;
+        }
+      } catch (error) {
+        // Si hay un error al obtener la sesión, simplemente continuamos sin sesión
+        console.error('Error getting session:', error);
+      }
+
+      return context;
     },
-    middleware: middlewareFunctions,
-  }
-);
+    listen: { port: 4000 },
+  });
+
+  console.log(`🚀 Server ready at ${url}`);
+};
+
+startServer().catch((error) => {
+  console.error('Error starting server:', error);
+  process.exit(1);
+}); 

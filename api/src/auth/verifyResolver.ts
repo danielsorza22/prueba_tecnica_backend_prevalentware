@@ -1,14 +1,15 @@
 import { sessionConfig } from './sessionConfig';
 
-const verifyResolver = (
-  resolverName: string,
-  type: 'Mutation' | 'Query' | 'Parent'
-) => {
-  const resolvers = sessionConfig[type];
-  const findResolver = resolvers.find((element: any) => {
-    if (resolverName == element.name) return element;
-  });
-  return findResolver;
-};
+interface ResolverConfig {
+  name: string;
+  roles: string[];
+  isPublic: boolean;
+}
 
-export { verifyResolver };
+export const verifyResolver = (
+  resolverName: string,
+  resolverType: 'Query' | 'Mutation'
+): ResolverConfig | undefined => {
+  const config = sessionConfig[resolverType];
+  return config?.find((resolver) => resolver.name === resolverName);
+};

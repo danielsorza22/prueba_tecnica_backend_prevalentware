@@ -1,22 +1,30 @@
-import { db } from '@/types';
+import { PrismaClient } from '@prisma/client';
+import { AuthenticationError, AuthenticatedSession } from '../types';
 
-const getSession = async (db: db, sessionToken: string | undefined) => {
-  const session = await db.session.findFirst({
-    where: { sessionToken: sessionToken ?? '' },
-    select: {
-      expires: true,
-      user: {
-        select: {
-          role: true,
-          id: true,
-        },
-      },
-    },
-  });
-  if (!session) {
-    throw new Error('Session not found');
+export const getSession = async (
+  prisma: PrismaClient,
+  sessionToken?: string
+): Promise<AuthenticatedSession | null> => {
+  if (!sessionToken) {
+    return null;
   }
-  return session;
-};
 
-export { getSession };
+  const session = await prisma.session.findUnique({
+    where: { 
+      sessionToken 
+    },
+    include: {
+      User: {
+        include: {
+          Role: true
+        }
+      }
+    }
+  });
+
+  if (!session) {
+    throw new AuthenticationError('Session not found');
+  }
+
+  return session as AuthenticatedSession;
+};

@@ -1,24 +1,38 @@
-import { Context, Enum_ResolverType, ResolverFunction } from '@/types';
+import { Context } from '../types';
 import { checkSession } from './checkSession';
+import { AuthorizationError } from '../types';
+import { AuthenticationError } from '../types';
 
-const withSessionCheck = (
+type ResolverFunction = (parent: any, args: any, context: Context) => Promise<any>;
+
+export const withSessionCheck = (
   resolver: ResolverFunction,
   resolverName: string,
-  resolverType: Enum_ResolverType
+  resolverType: 'Query' | 'Mutation'
 ) => {
   return async (parent: unknown, args: unknown, context: Context) => {
-    const check = await checkSession({
-      session: context.session,
-      resolverName,
-      resolverType,
-    });
+    try {
+      // Verificar permisos
+      const check = await checkSession({
+        session: context.session,
+        resolverName,
+        resolverType,
+        args
+      });
 
-    if (check?.auth) {
-      return resolver(parent, args, context);
-    } else {
-      return Error(check?.error);
+      // Si la verificación pasa, ejecutar el resolver
+      if (check.auth) {
+        return resolver(parent, args, context);
+      }
+
+      throw new AuthorizationError('Unauthorized operation');
+    } catch (error) {
+      // Re-lanzar errores de autenticación/autorización
+      if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+        throw error;
+      }
+      // Para otros errores, lanzar error de autorización genérico
+      throw new AuthorizationError('Authorization check failed');
     }
   };
 };
-
-export { withSessionCheck };

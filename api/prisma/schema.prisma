@@ -1,73 +1,64 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Modelos basicos para autenticacion auth0
-
-enum Enum_RoleName {
-    Admin
-    SuperAdmin
+model Country {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User[]
 }
 
-model Account {
-    id                 String  @id @default(cuid())
-    type               String
-    provider           String
-    providerAccountId  String
-    refresh_token      String?
-    access_token       String?
-    expires_at         Int?
-    token_type         String?
-    scope              String?
-    id_token           String?
-    session_state      String?
-    oauth_token_secret String?
-    oauth_token        String?
-    userId             String  @unique
-    user               User    @relation(fields: [userId], references: [id])
-
-    @@unique([provider, providerAccountId])
+model Role {
+  id        String        @id
+  name      Enum_RoleName
+  createdAt DateTime      @default(now())
+  User      User[]
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    expires      DateTime
-    userId       String
-    user         User     @relation(fields: [userId], references: [id])
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  User         User     @relation(fields: [userId], references: [id])
 }
 
 model User {
-    id             String    @id @default(cuid())
-    name           String
-    lastName       String?
-    email          String    @unique
-    emailVerified  DateTime?
-    image          String?
-    identification String?
-
-    account  Account?
-    sessions Session[]
-
-    role   Role   @relation(fields: [roleId], references: [id])
-    roleId String
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id                         String           @id
+  email                      String           @unique
+  emailVerified              DateTime?
+  termsAndConditionsAccepted DateTime?
+  name                       String?
+  image                      String?
+  position                   String?
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime
+  roleId                     String?
+  Session                    Session[]
+  Role                       Role?            @relation(fields: [roleId], references: [id])
+  UserMonitoring             UserMonitoring[]
+  Country                    Country[]
 }
 
-// Modelos ejemplo para creacion de dataLoaders
-model Role {
-    id   String        @id @default(cuid())
-    name Enum_RoleName @unique
+model UserMonitoring {
+  id          String   @id
+  usage       Int
+  description String
+  userId      String
+  createdAt   DateTime @default(now())
+  User        User     @relation(fields: [userId], references: [id])
+}
 
-    users User[]
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum Enum_RoleName {
+  Admin
+  Manager
+  User
 }

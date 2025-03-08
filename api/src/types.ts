@@ -1,41 +1,34 @@
-import { PrismaClient, Role } from '@prisma/client';
-import type { APIGatewayProxyEvent } from 'aws-lambda';
+import { PrismaClient, User, Role, Session } from '@prisma/client';
 
-type db = PrismaClient;
-
-interface customEvent extends APIGatewayProxyEvent {
-  session: Session;
+// Tipo para el usuario autenticado con su rol
+export interface AuthenticatedUser extends User {
+  Role: Role | null;
 }
 
-export type Session = {
-  expires: Date;
-  user: {
-    id: string;
-    role: Role;
-  };
-} | null;
-
-interface Context {
-  db: db;
-  session: Session;
+// Tipo para la sesión con el usuario incluido
+export interface AuthenticatedSession extends Session {
+  User: AuthenticatedUser;
 }
 
-export type ResolverFunction = (
-  parent: any,
-  args: any,
-  context: Context
-) => Promise<unknown>;
-
-interface Resolver {
-  Query: { [key: string]: ResolverFunction };
-  Mutation: { [key: string]: ResolverFunction };
-  [key: string]: { [key: string]: ResolverFunction };
+// Contexto disponible en todos los resolvers
+export interface Context {
+  prisma: PrismaClient;
+  user?: AuthenticatedUser;
+  session?: AuthenticatedSession;
 }
 
-export enum Enum_ResolverType {
-  Query = 'Query',
-  Mutation = 'Mutation',
-  Parent = 'Parent',
+// Error personalizado para autenticación
+export class AuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
 }
 
-export { Resolver, db, customEvent, Context };
+// Error personalizado para autorización
+export class AuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthorizationError';
+  }
+} 
