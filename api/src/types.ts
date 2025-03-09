@@ -11,6 +11,25 @@ export interface AuthenticatedSession extends Session {
   User: AuthenticatedUser;
 }
 
+// Tipos para paginación
+export interface PaginationInput {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginationInfo {
+  totalCount: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  currentPage: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pageInfo: PaginationInfo;
+}
+
 // Contexto disponible en todos los resolvers
 export interface Context {
   prisma: PrismaClient;

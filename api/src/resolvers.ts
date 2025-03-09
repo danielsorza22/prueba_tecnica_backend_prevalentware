@@ -1,4 +1,4 @@
-import { Context, AuthenticationError, AuthorizationError, AuthenticatedUser } from './types';
+import { Context, AuthenticationError, AuthorizationError, AuthenticatedUser, PaginationInput, PaginatedResponse } from './types';
 import { withSessionCheck } from './auth/withSessionCheck';
 
 // Middleware para verificar autenticación
@@ -23,15 +23,37 @@ const formatDate = (date: Date): string => {
   return date.toISOString().replace('T', ' ').split('.')[0];
 };
 
+// Función auxiliar para manejar la paginación
+const handlePagination = <T>(
+  items: T[],
+  totalCount: number,
+  { page = 1, pageSize = 10 }: PaginationInput
+): PaginatedResponse<T> => {
+  const totalPages = Math.ceil(totalCount / pageSize);
+  
+  return {
+    items,
+    pageInfo: {
+      totalCount,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      currentPage: page,
+      totalPages
+    }
+  };
+};
+
 export const resolvers = {
   Query: {
     // Obtener todos los usuarios
     users: withSessionCheck(
-      async (_parent: any, _args: any, context: Context) => {
+      async (_parent: any, args: { pagination?: PaginationInput }, context: Context) => {
         if (!context.user || !context.user.Role) {
           throw new AuthenticationError('User not authenticated');
         }
 
+        const { page = 1, pageSize = 10 } = args.pagination || {};
+        const skip = (page - 1) * pageSize;
         const userRole = context.user.Role.name;
 
         // Configurar los includes según el rol
@@ -42,18 +64,29 @@ export const resolvers = {
 
         // Si es User, solo puede ver sus propios datos
         if (userRole === 'User') {
-          return context.prisma.user.findMany({
-            where: { 
-              id: context.user.id 
-            },
-            include: includeFields
+          const totalCount = await context.prisma.user.count({
+            where: { id: context.user.id }
           });
+
+          const items = await context.prisma.user.findMany({
+            where: { id: context.user.id },
+            include: includeFields,
+            skip,
+            take: pageSize
+          });
+
+          return handlePagination(items, totalCount, { page, pageSize });
         }
 
         // Admin y Manager pueden ver todos los usuarios
-        return context.prisma.user.findMany({
-          include: includeFields
+        const totalCount = await context.prisma.user.count();
+        const items = await context.prisma.user.findMany({
+          include: includeFields,
+          skip,
+          take: pageSize
         });
+
+        return handlePagination(items, totalCount, { page, pageSize });
       },
       'users',
       'Query'
@@ -99,11 +132,13 @@ export const resolvers = {
 
     // Obtener todos los países (solo Admin y Manager)
     countries: withSessionCheck(
-      async (_parent: any, _args: any, context: Context) => {
+      async (_parent: any, args: { pagination?: PaginationInput }, context: Context) => {
         if (!context.user || !context.user.Role) {
           throw new AuthenticationError('User not authenticated');
         }
 
+        const { page = 1, pageSize = 10 } = args.pagination || {};
+        const skip = (page - 1) * pageSize;
         const userRole = context.user.Role.name;
 
         // Solo Admin y Manager pueden ver los países
@@ -111,11 +146,14 @@ export const resolvers = {
           throw new AuthorizationError('Insufficient permissions to view countries');
         }
 
-        return context.prisma.country.findMany({
-          include: {
-            User: true
-          }
+        const totalCount = await context.prisma.country.count();
+        const items = await context.prisma.country.findMany({
+          include: { User: true },
+          skip,
+          take: pageSize
         });
+
+        return handlePagination(items, totalCount, { page, pageSize });
       },
       'countries',
       'Query'
@@ -123,15 +161,21 @@ export const resolvers = {
 
     // Obtener monitoreo de usuario por rango de fechas
     userMonitoringByDate: withSessionCheck(
-      async (_parent: any, args: { email: string; startDate: string; endDate: string }, context: Context) => {
+      async (_parent: any, args: { 
+        email: string; 
+        startDate: string; 
+        endDate: string;
+        pagination?: PaginationInput;
+      }, context: Context) => {
         if (!context.user || !context.user.Role) {
           throw new AuthenticationError('User not authenticated');
         }
 
+        const { page = 1, pageSize = 10 } = args.pagination || {};
+        const skip = (page - 1) * pageSize;
         const userRole = context.user.Role.name;
         const isOwnEmail = context.user.email === args.email;
 
-        // Verificar permisos: solo Admin puede ver cualquier usuario, User solo puede ver sus propios datos
         if (userRole === 'User' && !isOwnEmail) {
           throw new AuthorizationError('Cannot view other users monitoring data');
         }
@@ -140,7 +184,6 @@ export const resolvers = {
           throw new AuthorizationError('Managers cannot access monitoring data');
         }
 
-        // Buscar el usuario por email
         const targetUser = await context.prisma.user.findUnique({
           where: { email: args.email }
         });
@@ -149,65 +192,66 @@ export const resolvers = {
           throw new Error('User not found');
         }
 
-        // Convertir fechas string a Date
         const startDate = new Date(args.startDate);
         const endDate = new Date(args.endDate);
 
-        // Validar fechas
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           throw new Error('Invalid date format');
         }
 
-        // Buscar registros de monitoreo en el rango de fechas
-        const monitoringData = await context.prisma.userMonitoring.findMany({
-          where: {
-            userId: targetUser.id,
-            createdAt: {
-              gte: startDate,
-              lte: endDate
-            }
-          },
-          include: {
-            User: true
-          },
-          orderBy: {
-            createdAt: 'desc'
+        const where = {
+          userId: targetUser.id,
+          createdAt: {
+            gte: startDate,
+            lte: endDate
           }
+        };
+
+        const totalCount = await context.prisma.userMonitoring.count({ where });
+        const items = await context.prisma.userMonitoring.findMany({
+          where,
+          include: { User: true },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: pageSize
         });
 
-        // Formatear las fechas antes de retornar
-        return monitoringData.map(record => ({
+        const formattedItems = items.map(record => ({
           ...record,
           createdAt: formatDate(record.createdAt)
         }));
+
+        return handlePagination(formattedItems, totalCount, { page, pageSize });
       },
       'userMonitoringByDate',
       'Query'
     ),
 
-    // Obtener top 3 usuarios con más registros de monitoreo
+    // Obtener top usuarios con más registros de monitoreo
     topUsersWithMonitoring: withSessionCheck(
-      async (_parent: any, args: { startDate: string; endDate: string }, context: Context) => {
+      async (_parent: any, args: { 
+        startDate: string; 
+        endDate: string;
+        pagination?: PaginationInput;
+      }, context: Context) => {
         if (!context.user || !context.user.Role) {
           throw new AuthenticationError('User not authenticated');
         }
 
-        // Solo administradores pueden acceder a esta información
         if (context.user.Role.name !== 'Admin') {
           throw new AuthorizationError('Only administrators can access this information');
         }
 
-        // Convertir fechas string a Date
+        const { page = 1, pageSize = 10 } = args.pagination || {};
+        const skip = (page - 1) * pageSize;
         const startDate = new Date(args.startDate);
         const endDate = new Date(args.endDate);
 
-        // Validar fechas
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           throw new Error('Invalid date format');
         }
 
-        // Obtener usuarios con conteo de registros de monitoreo
-        const usersWithMonitoring = await context.prisma.user.findMany({
+        const usersWithCount = await context.prisma.user.findMany({
           select: {
             id: true,
             email: true,
@@ -235,11 +279,24 @@ export const resolvers = {
               _count: 'desc'
             }
           },
-          take: 3
+          skip,
+          take: pageSize
         });
 
-        // Formatear la respuesta
-        return usersWithMonitoring.map(user => ({
+        const totalCount = await context.prisma.user.count({
+          where: {
+            UserMonitoring: {
+              some: {
+                createdAt: {
+                  gte: startDate,
+                  lte: endDate
+                }
+              }
+            }
+          }
+        });
+
+        const items = usersWithCount.map(user => ({
           user: {
             ...user,
             createdAt: formatDate(user.createdAt),
@@ -247,18 +304,21 @@ export const resolvers = {
           },
           monitoringCount: user._count.UserMonitoring
         }));
+
+        return handlePagination(items, totalCount, { page, pageSize });
       },
       'topUsersWithMonitoring',
       'Query'
     ),
 
-    // Obtener top 3 usuarios por tipo de monitoreo y país
+    // Obtener top usuarios por tipo de monitoreo y país
     topUsersByTypeAndCountry: withSessionCheck(
       async (_parent: any, args: { 
         monitoringType: 'signIn' | 'print' | 'share';
         countryId: string;
         startDate: string;
         endDate: string;
+        pagination?: PaginationInput;
       }, context: Context) => {
         if (!context.user || !context.user.Role) {
           throw new AuthenticationError('User not authenticated');
@@ -268,6 +328,7 @@ export const resolvers = {
           throw new AuthorizationError('Only administrators can access this information');
         }
 
+        const { page = 1, pageSize = 10 } = args.pagination || {};
         const startDate = new Date(args.startDate);
         const endDate = new Date(args.endDate);
 
@@ -275,7 +336,9 @@ export const resolvers = {
           throw new Error('Invalid date format');
         }
 
-        // Consulta SQL corregida con el orden correcto de los parámetros
+        const offset = (page - 1) * pageSize;
+        
+        // Consulta SQL modificada para incluir paginación
         const rawQuery = `
           WITH UserCounts AS (
             SELECT 
@@ -293,15 +356,16 @@ export const resolvers = {
             INNER JOIN "Role" r ON u."roleId" = r.id
             LEFT JOIN "UserMonitoring" um ON u.id = um."userId"
             WHERE 
-              cu."A" = $1                    -- countryId
-              AND um.description = $2        -- monitoringType
-              AND um."createdAt" >= $3      -- startDate
-              AND um."createdAt" <= $4      -- endDate
+              cu."A" = $1
+              AND um.description = $2
+              AND um."createdAt" >= $3
+              AND um."createdAt" <= $4
             GROUP BY 
               u.id, u.email, u.name, u.position, 
               u."createdAt", u."updatedAt", u."roleId", r.name
             ORDER BY monitoring_count DESC
-            LIMIT 3
+            OFFSET $5
+            LIMIT $6
           )
           SELECT 
             id, 
@@ -317,29 +381,41 @@ export const resolvers = {
           WHERE monitoring_count > 0;
         `;
 
-        // Asegurarnos de que todos los parámetros estén presentes y en el orden correcto
-        const params = [
-          args.countryId,        // $1
-          args.monitoringType,   // $2
-          startDate,            // $3
-          endDate              // $4
-        ];
+        // Consulta para obtener el total de registros
+        const countQuery = `
+          SELECT COUNT(*) as total
+          FROM (
+            SELECT u.id
+            FROM "User" u
+            INNER JOIN "_CountryToUser" cu ON u.id = cu."B"
+            LEFT JOIN "UserMonitoring" um ON u.id = um."userId"
+            WHERE 
+              cu."A" = $1
+              AND um.description = $2
+              AND um."createdAt" >= $3
+              AND um."createdAt" <= $4
+            GROUP BY u.id
+            HAVING COUNT(um.id) > 0
+          ) as subquery;
+        `;
 
         try {
-          const results = await context.prisma.$queryRawUnsafe<Array<{
-            id: string;
-            email: string;
-            name: string | null;
-            position: string | null;
-            createdAt: Date;
-            updatedAt: Date;
-            roleId: string | null;
-            role_name: string;
-            monitoring_count: string;
-          }>>(rawQuery, ...params);
+          const [results, countResult] = await Promise.all([
+            context.prisma.$queryRawUnsafe<Array<{
+              id: string;
+              email: string;
+              name: string | null;
+              position: string | null;
+              createdAt: Date;
+              updatedAt: Date;
+              roleId: string | null;
+              role_name: string;
+              monitoring_count: string;
+            }>>(rawQuery, args.countryId, args.monitoringType, startDate, endDate, offset, pageSize),
+            context.prisma.$queryRawUnsafe<[{ total: number }]>(countQuery, args.countryId, args.monitoringType, startDate, endDate)
+          ]);
 
-          // Formatear los resultados
-          return results.map(row => ({
+          const items = results.map(row => ({
             user: {
               id: row.id,
               email: row.email,
@@ -354,6 +430,10 @@ export const resolvers = {
             },
             monitoringCount: parseInt(row.monitoring_count)
           }));
+
+          const totalCount = Number(countResult[0].total);
+
+          return handlePagination(items, totalCount, { page, pageSize });
         } catch (error) {
           console.error('Error en la consulta SQL:', error);
           throw error;

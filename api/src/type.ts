@@ -65,34 +65,76 @@ export const typeDefs = `#graphql
     monitoringCount: Int!
   }
 
+  # Tipo para la información de paginación
+  type PaginationInfo {
+    totalCount: Int!
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    currentPage: Int!
+    totalPages: Int!
+  }
+
+  # Tipo para la respuesta paginada de usuarios
+  type UserPaginatedResponse {
+    items: [User!]!
+    pageInfo: PaginationInfo!
+  }
+
+  # Tipo para la respuesta paginada de monitoreo
+  type UserMonitoringPaginatedResponse {
+    items: [UserMonitoring!]!
+    pageInfo: PaginationInfo!
+  }
+
+  # Tipo para la respuesta paginada de conteo de monitoreo
+  type UserMonitoringCountPaginatedResponse {
+    items: [UserMonitoringCount!]!
+    pageInfo: PaginationInfo!
+  }
+
+  # Tipo para la respuesta paginada de países
+  type CountryPaginatedResponse {
+    items: [Country!]!
+    pageInfo: PaginationInfo!
+  }
+
+  # Input para la paginación
+  input PaginationInput {
+    page: Int = 1
+    pageSize: Int = 10
+  }
+
   # Queries (operaciones de lectura)
   type Query {
     # Usuarios
-    users: [User!]!              # Lista de usuarios
-    userByEmail(email: String!): User  # Buscar usuario por email
+    users(pagination: PaginationInput): UserPaginatedResponse!
+    userByEmail(email: String!): User
     
     # Países
-    countries: [Country!]!       # Lista de países (solo Admin y Manager)
+    countries(pagination: PaginationInput): CountryPaginatedResponse!
 
     # Monitoreo
     userMonitoringByDate(
       email: String!
       startDate: String!
       endDate: String!
-    ): [UserMonitoring!]!       # Monitoreo de usuario por rango de fechas
+      pagination: PaginationInput
+    ): UserMonitoringPaginatedResponse!
 
     # Top usuarios por monitoreo
     topUsersWithMonitoring(
       startDate: String!
       endDate: String!
-    ): [UserMonitoringCount!]!   # Top 3 usuarios con más registros de monitoreo
+      pagination: PaginationInput
+    ): UserMonitoringCountPaginatedResponse!
 
     # Top usuarios por tipo de monitoreo y país
     topUsersByTypeAndCountry(
       monitoringType: MonitoringType!
-      countryId: ID!
+      countryId: String!
       startDate: String!
       endDate: String!
-    ): [UserMonitoringCount!]!   # Top 3 usuarios por tipo de monitoreo y país
+      pagination: PaginationInput
+    ): UserMonitoringCountPaginatedResponse!
   }
 `; 

@@ -1,8 +1,11 @@
 node_modules
 npm-debug.log
-dist
 .env
 .git
 .gitignore
 README.md
-.vscode 
+.vscode
+coverage
+dist
+*.md
+.DS_Store 

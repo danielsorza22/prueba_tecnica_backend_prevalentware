@@ -20,22 +20,16 @@ RUN npx prisma generate
 RUN npm run build
 
 # Etapa de producción
-FROM node:18-alpine
+FROM public.ecr.aws/lambda/nodejs:18
 
-WORKDIR /app
-
-# Copiar archivos necesarios de la etapa de construcción
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
+# Copiar archivos necesarios
+COPY --from=builder /app/dist ${LAMBDA_TASK_ROOT}
+COPY --from=builder /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+COPY --from=builder /app/package*.json ${LAMBDA_TASK_ROOT}/
+COPY --from=builder /app/prisma ${LAMBDA_TASK_ROOT}/prisma
 
 # Variables de entorno por defecto
 ENV NODE_ENV=production
-ENV PORT=4000
 
-# Exponer puerto
-EXPOSE 4000
-
-# Comando de inicio
-CMD ["npm", "start"] 
+# Configurar el handler de Lambda
+CMD ["dist/lambda.handler"] 
