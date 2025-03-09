@@ -8,6 +8,13 @@ export const typeDefs = `#graphql
     User
   }
 
+  # Enumeración para tipos de monitoreo
+  enum MonitoringType {
+    signIn
+    print
+    share
+  }
+
   # Tipo Role
   type Role {
     id: ID!
@@ -52,6 +59,12 @@ export const typeDefs = `#graphql
     monitoring: [UserMonitoring!]
   }
 
+  # Tipo para el conteo de monitoreo por usuario
+  type UserMonitoringCount {
+    user: User!
+    monitoringCount: Int!
+  }
+
   # Queries (operaciones de lectura)
   type Query {
     # Usuarios
@@ -67,5 +80,19 @@ export const typeDefs = `#graphql
       startDate: String!
       endDate: String!
     ): [UserMonitoring!]!       # Monitoreo de usuario por rango de fechas
+
+    # Top usuarios por monitoreo
+    topUsersWithMonitoring(
+      startDate: String!
+      endDate: String!
+    ): [UserMonitoringCount!]!   # Top 3 usuarios con más registros de monitoreo
+
+    # Top usuarios por tipo de monitoreo y país
+    topUsersByTypeAndCountry(
+      monitoringType: MonitoringType!
+      countryId: ID!
+      startDate: String!
+      endDate: String!
+    ): [UserMonitoringCount!]!   # Top 3 usuarios por tipo de monitoreo y país
   }
 `; 

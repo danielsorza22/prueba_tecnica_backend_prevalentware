@@ -25,6 +25,12 @@ export const config: Config = {
     },
     userMonitoringByDate: {
       roles: ['Admin', 'User']
+    },
+    topUsersWithMonitoring: {
+      roles: ['Admin']
+    },
+    topUsersByTypeAndCountry: {
+      roles: ['Admin']
     }
   },
   Mutation: {}
@@ -49,6 +55,8 @@ export const sessionConfig = {
     // Monitoreo (solo Admin y User propio)
     { name: 'userMonitoring', roles: ['Admin'], isPublic: false },
     { name: 'userMonitoringByDate', roles: ['Admin', 'User'], isPublic: false },
+    { name: 'topUsersWithMonitoring', roles: ['Admin'], isPublic: false },
+    { name: 'topUsersByTypeAndCountry', roles: ['Admin'], isPublic: false },
     
     // Roles (solo Admin)
     { name: 'roles', roles: ['Admin'], isPublic: false },

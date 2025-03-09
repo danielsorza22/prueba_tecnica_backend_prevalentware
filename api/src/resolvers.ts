@@ -18,6 +18,11 @@ const checkAdmin = (context: Context): AuthenticatedUser => {
   return user;
 };
 
+// Función auxiliar para formatear fechas
+const formatDate = (date: Date): string => {
+  return date.toISOString().replace('T', ' ').split('.')[0];
+};
+
 export const resolvers = {
   Query: {
     // Obtener todos los usuarios
@@ -154,7 +159,7 @@ export const resolvers = {
         }
 
         // Buscar registros de monitoreo en el rango de fechas
-        return context.prisma.userMonitoring.findMany({
+        const monitoringData = await context.prisma.userMonitoring.findMany({
           where: {
             userId: targetUser.id,
             createdAt: {
@@ -169,8 +174,170 @@ export const resolvers = {
             createdAt: 'desc'
           }
         });
+
+        // Formatear las fechas antes de retornar
+        return monitoringData.map(record => ({
+          ...record,
+          createdAt: formatDate(record.createdAt)
+        }));
       },
       'userMonitoringByDate',
+      'Query'
+    ),
+
+    // Obtener top 3 usuarios con más registros de monitoreo
+    topUsersWithMonitoring: withSessionCheck(
+      async (_parent: any, args: { startDate: string; endDate: string }, context: Context) => {
+        if (!context.user || !context.user.Role) {
+          throw new AuthenticationError('User not authenticated');
+        }
+
+        // Solo administradores pueden acceder a esta información
+        if (context.user.Role.name !== 'Admin') {
+          throw new AuthorizationError('Only administrators can access this information');
+        }
+
+        // Convertir fechas string a Date
+        const startDate = new Date(args.startDate);
+        const endDate = new Date(args.endDate);
+
+        // Validar fechas
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+
+        // Obtener usuarios con conteo de registros de monitoreo
+        const usersWithMonitoring = await context.prisma.user.findMany({
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            position: true,
+            createdAt: true,
+            updatedAt: true,
+            roleId: true,
+            Role: true,
+            _count: {
+              select: {
+                UserMonitoring: {
+                  where: {
+                    createdAt: {
+                      gte: startDate,
+                      lte: endDate
+                    }
+                  }
+                }
+              }
+            }
+          },
+          orderBy: {
+            UserMonitoring: {
+              _count: 'desc'
+            }
+          },
+          take: 3
+        });
+
+        // Formatear la respuesta
+        return usersWithMonitoring.map(user => ({
+          user: {
+            ...user,
+            createdAt: formatDate(user.createdAt),
+            updatedAt: formatDate(user.updatedAt)
+          },
+          monitoringCount: user._count.UserMonitoring
+        }));
+      },
+      'topUsersWithMonitoring',
+      'Query'
+    ),
+
+    // Obtener top 3 usuarios por tipo de monitoreo y país
+    topUsersByTypeAndCountry: withSessionCheck(
+      async (_parent: any, args: { 
+        monitoringType: 'signIn' | 'print' | 'share';
+        countryId: string;
+        startDate: string;
+        endDate: string;
+      }, context: Context) => {
+        if (!context.user || !context.user.Role) {
+          throw new AuthenticationError('User not authenticated');
+        }
+
+        // Solo administradores pueden acceder a esta información
+        if (context.user.Role.name !== 'Admin') {
+          throw new AuthorizationError('Only administrators can access this information');
+        }
+
+        // Convertir fechas string a Date
+        const startDate = new Date(args.startDate);
+        const endDate = new Date(args.endDate);
+
+        // Validar fechas
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+
+        // Verificar que el país existe
+        const country = await context.prisma.country.findUnique({
+          where: { id: args.countryId }
+        });
+
+        if (!country) {
+          throw new Error('Country not found');
+        }
+
+        // Obtener usuarios con conteo de registros de monitoreo específico
+        const usersWithMonitoring = await context.prisma.user.findMany({
+          where: {
+            Country: {
+              some: {
+                id: args.countryId
+              }
+            }
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            position: true,
+            createdAt: true,
+            updatedAt: true,
+            roleId: true,
+            Role: true,
+            _count: {
+              select: {
+                UserMonitoring: {
+                  where: {
+                    description: args.monitoringType,
+                    createdAt: {
+                      gte: startDate,
+                      lte: endDate
+                    }
+                  }
+                }
+              }
+            }
+          },
+          orderBy: {
+            UserMonitoring: {
+              _count: 'desc'
+            }
+          },
+          take: 3
+        });
+
+        // Formatear la respuesta
+        return usersWithMonitoring.map(user => ({
+          user: {
+            ...user,
+            createdAt: formatDate(user.createdAt),
+            updatedAt: formatDate(user.updatedAt)
+          },
+          monitoringCount: user._count.UserMonitoring
+        }));
+      },
+      'topUsersByTypeAndCountry',
       'Query'
     )
   },
