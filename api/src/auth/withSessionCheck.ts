@@ -14,7 +14,7 @@ export const withSessionCheck = (
     try {
       // Verificar permisos
       const check = await checkSession({
-        session: context.session,
+        session: context.session || null,
         resolverName,
         resolverType,
         args

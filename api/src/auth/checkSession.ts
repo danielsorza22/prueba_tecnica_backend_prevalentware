@@ -1,9 +1,9 @@
 import { verifyResolver } from './verifyResolver';
-import { AuthenticationError, AuthorizationError } from '../types';
+import { AuthenticationError, AuthorizationError, AuthenticatedSession } from '../types';
 import { Context } from '../types';
 
 interface CheckSessionParams {
-  session: Context['session'];
+  session: AuthenticatedSession | null;
   resolverName: string;
   resolverType: 'Query' | 'Mutation';
   args?: any;

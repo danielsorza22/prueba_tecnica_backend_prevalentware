@@ -1,3 +1,35 @@
+interface ResolverConfig {
+  isPublic?: boolean;
+  roles: string[];
+}
+
+interface Config {
+  Query: {
+    [key: string]: ResolverConfig;
+  };
+  Mutation: {
+    [key: string]: ResolverConfig;
+  };
+}
+
+export const config: Config = {
+  Query: {
+    users: {
+      roles: ['Admin', 'Manager', 'User']
+    },
+    userByEmail: {
+      roles: ['Admin', 'Manager', 'User']
+    },
+    countries: {
+      roles: ['Admin', 'Manager']
+    },
+    userMonitoringByDate: {
+      roles: ['Admin', 'User']
+    }
+  },
+  Mutation: {}
+};
+
 export const sessionConfig = {
   Query: [
     // Datos del usuario autenticado
@@ -14,8 +46,9 @@ export const sessionConfig = {
     { name: 'userByEmail', roles: ['Admin', 'Manager', 'User'], isPublic: false },
     { name: 'country', roles: ['Admin', 'Manager'], isPublic: false },
 
-    // Monitoreo (solo Admin)
+    // Monitoreo (solo Admin y User propio)
     { name: 'userMonitoring', roles: ['Admin'], isPublic: false },
+    { name: 'userMonitoringByDate', roles: ['Admin', 'User'], isPublic: false },
     
     // Roles (solo Admin)
     { name: 'roles', roles: ['Admin'], isPublic: false },

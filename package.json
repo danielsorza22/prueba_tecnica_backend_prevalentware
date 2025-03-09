@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "prisma": {
+    "schema": "api/prisma/schema.prisma"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only api/src/index.ts",
     "build": "tsc",
@@ -16,6 +19,7 @@
   "dependencies": {
     "@apollo/server": "^4.10.0",
     "@prisma/client": "^5.10.2",
+    "dataloader": "^2.2.3",
     "graphql": "^16.8.1",
     "graphql-scalars": "^1.22.4"
   },

@@ -1,4 +1,5 @@
 import { PrismaClient, User, Role, Session } from '@prisma/client';
+import DataLoader from 'dataloader';
 
 // Tipo para el usuario autenticado con su rol
 export interface AuthenticatedUser extends User {
@@ -13,8 +14,11 @@ export interface AuthenticatedSession extends Session {
 // Contexto disponible en todos los resolvers
 export interface Context {
   prisma: PrismaClient;
-  user?: AuthenticatedUser;
-  session?: AuthenticatedSession;
+  user?: AuthenticatedUser | null;
+  session?: AuthenticatedSession | null;
+  loaders?: {
+    roleLoader: DataLoader<string, Role | null>;
+  };
 }
 
 // Error personalizado para autenticación

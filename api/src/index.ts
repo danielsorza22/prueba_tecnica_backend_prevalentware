@@ -1,10 +1,11 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
-import { typeDefs } from './schema';
+import { typeDefs } from './type';
 import { resolvers } from './resolvers';
 import { PrismaClient } from '@prisma/client';
 import { Context } from './types';
 import { getSession } from './auth/getSession';
+import { createRoleLoader } from './loaders/roleLoader';
 
 const prisma = new PrismaClient();
 
@@ -16,8 +17,13 @@ const server = new ApolloServer<Context>({
 const startServer = async () => {
   const { url } = await startStandaloneServer(server, {
     context: async ({ req }) => {
-      // Crear el contexto base con prisma
-      const context: Context = { prisma };
+      // Crear el contexto base con prisma y loaders
+      const context: Context = { 
+        prisma,
+        loaders: {
+          roleLoader: createRoleLoader(prisma)
+        }
+      };
 
       // Extraer el token del header
       const authHeader = req.headers.authorization;
