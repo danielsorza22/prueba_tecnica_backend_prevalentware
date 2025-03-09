@@ -1,10 +1,10 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
-import { typeDefs, resolvers } from './models';
+import { typeDefs, resolvers } from '../models';
+import { Context } from '../types';
 import { PrismaClient } from '@prisma/client';
-import { Context } from './types';
-import { getSession } from './auth/getSession';
-import { createRoleLoader } from './models/user/dataLoaders';
+import { createRoleLoader } from '../models/user/dataLoaders';
+import { getSession } from '../auth/getSession';
 
 const prisma = new PrismaClient();
 
@@ -36,20 +36,19 @@ const startServer = async () => {
       }
 
       try {
-        // Obtener la sesión usando la nueva función getSession
+        // Obtener la sesión usando la función getSession
         const session = await getSession(prisma, token);
         if (session) {
           context.session = session;
           context.user = session.User;
         }
       } catch (error) {
-        // Si hay un error al obtener la sesión, simplemente continuamos sin sesión
         console.error('Error getting session:', error);
       }
 
       return context;
     },
-    listen: { port: 4000 },
+    listen: { port: process.env.PORT ? parseInt(process.env.PORT) : 4000 },
   });
 
   console.log(`🚀 Server ready at ${url}`);

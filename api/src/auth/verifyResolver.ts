@@ -8,8 +8,8 @@ interface ResolverConfig {
 
 export const verifyResolver = (
   resolverName: string,
-  resolverType: 'Query' | 'Mutation'
+  resolverType: 'Query'
 ): ResolverConfig | undefined => {
   const config = sessionConfig[resolverType];
-  return config?.find((resolver) => resolver.name === resolverName);
+  return config?.find((resolver: ResolverConfig) => resolver.name === resolverName);
 };

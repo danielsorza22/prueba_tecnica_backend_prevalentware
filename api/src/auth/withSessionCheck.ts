@@ -8,11 +8,11 @@ type ResolverFunction = (parent: any, args: any, context: Context) => Promise<an
 export const withSessionCheck = (
   resolver: ResolverFunction,
   resolverName: string,
-  resolverType: 'Query' | 'Mutation'
+  resolverType: 'Query'
 ) => {
-  return async (parent: unknown, args: unknown, context: Context) => {
+  return async (parent: any, args: any, context: Context) => {
     try {
-      // Verificar permisos
+      // Verificar la sesión y permisos
       const check = await checkSession({
         session: context.session || null,
         resolverName,
@@ -20,12 +20,13 @@ export const withSessionCheck = (
         args
       });
 
-      // Si la verificación pasa, ejecutar el resolver
-      if (check.auth) {
-        return resolver(parent, args, context);
+      // Si hay un error en la verificación, lanzarlo
+      if (check instanceof Error) {
+        throw check;
       }
 
-      throw new AuthorizationError('Unauthorized operation');
+      // Si pasa la verificación, ejecutar el resolver
+      return resolver(parent, args, context);
     } catch (error) {
       // Re-lanzar errores de autenticación/autorización
       if (error instanceof AuthenticationError || error instanceof AuthorizationError) {

@@ -1,4 +1,4 @@
-import { resolvers } from '../src/resolvers';
+import { resolvers } from '../src/models';
 import { Context, AuthenticatedUser } from '../src/types';
 import { createMockContext } from './__mocks__/context.mock';
 import { Enum_RoleName } from '@prisma/client';

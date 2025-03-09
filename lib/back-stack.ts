@@ -69,8 +69,8 @@ export class BackStack extends cdk.Stack {
     }
 
     // Convertir el objeto BUCKETS en un array de BucketInput
-    const bucketInputs: BucketInput[] = Object.entries(BUCKETS).map(([key, value]) => ({
-      name: value,
+    const bucketInputs: BucketInput[] = Object.entries(BUCKETS).map(([_, value]) => ({
+      name: value as string,
       versioned: true,
     }));
 

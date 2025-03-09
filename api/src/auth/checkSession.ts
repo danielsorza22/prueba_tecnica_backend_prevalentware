@@ -5,7 +5,7 @@ import { Context } from '../types';
 interface CheckSessionParams {
   session: AuthenticatedSession | null;
   resolverName: string;
-  resolverType: 'Query' | 'Mutation';
+  resolverType: 'Query';
   args?: any;
 }
 

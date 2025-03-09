@@ -7,9 +7,6 @@ interface Config {
   Query: {
     [key: string]: ResolverConfig;
   };
-  Mutation: {
-    [key: string]: ResolverConfig;
-  };
 }
 
 export const config: Config = {
@@ -32,8 +29,7 @@ export const config: Config = {
     topUsersByTypeAndCountry: {
       roles: ['Admin']
     }
-  },
-  Mutation: {}
+  }
 };
 
 export const sessionConfig = {
@@ -60,20 +56,5 @@ export const sessionConfig = {
     
     // Roles (solo Admin)
     { name: 'roles', roles: ['Admin'], isPublic: false },
-  ],
-
-  Mutation: [
-    // Operaciones de usuario
-    { name: 'updateMyProfile', roles: ['Admin', 'Manager', 'User'], isPublic: false },
-    { name: 'updateUser', roles: ['Admin'], isPublic: false },
-    { name: 'deleteUser', roles: ['Admin'], isPublic: false },
-
-    // Operaciones de país
-    { name: 'createCountry', roles: ['Admin'], isPublic: false },
-    { name: 'updateCountry', roles: ['Admin'], isPublic: false },
-    { name: 'deleteCountry', roles: ['Admin'], isPublic: false },
-
-    // Operaciones de monitoreo
-    { name: 'createUserMonitoring', roles: ['Admin'], isPublic: false },
-  ],
+  ]
 }; 

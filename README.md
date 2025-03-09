@@ -1,7 +1,7 @@
 # GraphQL API Backend con Apollo Server y AWS CDK
 
 ## Descripción General
-Este proyecto implementa una API GraphQL robusta y escalable utilizando un stack tecnológico moderno. La solución está diseñada para manejar monitoreo de usuarios, autenticación, y operaciones eficientes de base de datos, con soporte para despliegue tanto en AWS Lambda como en ECS.
+Este proyecto implementa una API GraphQL robusta y escalable utilizando un stack tecnológico moderno. La solución está diseñada para manejar monitoreo de usuarios, autenticación basada en tokens, y control de acceso basado en roles (RBAC), con soporte para despliegue tanto en AWS Lambda como en ECS.
 
 ## Stack Tecnológico
 - **Node.js**: Runtime de JavaScript para el backend
@@ -16,10 +16,38 @@ Este proyecto implementa una API GraphQL robusta y escalable utilizando un stack
 ## Decisiones Arquitectónicas
 
 ### Autenticación y Autorización
-Se implementó un sistema de autenticación basado en sesiones utilizando la carpeta `auth/`, siguiendo la estructura del boilerplate de PrevalentWare. Esta decisión se tomó por:
-- **Seguridad**: Manejo seguro de sesiones con tokens
-- **Escalabilidad**: Fácil integración con diferentes proveedores de autenticación
-- **Mantenibilidad**: Estructura clara y separación de responsabilidades
+Se implementó un sistema de autenticación basado en tokens utilizando la carpeta `auth/`, siguiendo la estructura del boilerplate de PrevalentWare. Esta decisión se tomó por:
+
+#### Sistema de Tokens
+- **Validación de Sesión**: Cada request GraphQL requiere un token en los headers que se valida contra la tabla `Session`
+- **Recuperación de Usuario**: El token se utiliza para obtener el usuario asociado y su rol
+- **Persistencia**: Los tokens no tienen fecha de expiración para propósitos de prueba
+- **Seguridad**: Manejo seguro de sesiones existentes (no se crean nuevos tokens)
+
+#### Control de Acceso Basado en Roles (RBAC)
+Se implementaron tres niveles de acceso:
+
+1. **Usuario Regular (User)**:
+   - Acceso limitado a sus propios datos
+   - Puede ver sus países asociados
+   - Puede acceder a su información de monitoreo (UserMonitoring)
+
+2. **Gerente (Manager)**:
+   - Acceso a datos de todos los usuarios
+   - Acceso a información de todos los países
+   - No tiene acceso a datos de UserMonitoring
+
+3. **Administrador (Admin)**:
+   - Acceso completo a todos los datos
+   - Puede ver información de todos los usuarios
+   - Acceso a todos los datos de monitoreo
+   - Sin restricciones en consultas
+
+#### Implementación Técnica
+- Middleware de autenticación que valida tokens
+- Resolvers protegidos con verificación de roles
+- Filtrado de datos basado en el rol del usuario
+- Manejo de errores específicos para problemas de autenticación/autorización
 
 ### Optimización de Queries
 #### SQL Raw para TopUsers
@@ -142,4 +170,60 @@ El proyecto utiliza AWS CDK para definir y desplegar la infraestructura como có
 ### Desarrollo
 - Local: `http://localhost:4000`
 - Docker: `http://localhost:4000` (ECS) o `http://localhost:9000` (Lambda)
+
+## Ejemplos de Uso
+
+### Autenticación en Queries
+```graphql
+# Header requerido para todas las peticiones
+{
+  "Authorization": "Bearer <token>"
+}
+
+# Query de ejemplo para un usuario regular
+query MyData {
+  me {
+    id
+    name
+    email
+    countries {
+      id
+      name
+    }
+    monitoring {
+      type
+      createdAt
+    }
+  }
+}
+
+# Query de ejemplo para un manager
+query AllUsers {
+  users {
+    id
+    name
+    email
+    countries {
+      id
+      name
+    }
+  }
+}
+
+# Query de ejemplo para un admin
+query MonitoringData {
+  topUsersByTypeAndCountry(
+    monitoringType: signIn
+    countryId: 1
+    startDate: "2024-03-01"
+    endDate: "2024-03-09"
+  ) {
+    user {
+      id
+      name
+    }
+    count
+  }
+}
+```
 

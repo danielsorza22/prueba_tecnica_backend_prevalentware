@@ -44,4 +44,4 @@ ENV PORT=4000
 EXPOSE 4000
 
 # Comando de inicio
-CMD ["npm", "start"] 
+CMD ["node", "dist/docker/server.js"] 

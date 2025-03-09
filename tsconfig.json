@@ -21,20 +21,21 @@
     "typeRoots": ["./node_modules/@types"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["./*"]
     },
     "outDir": "./dist",
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
   "include": [
-    "api/src/**/*"
+    "api/src/**/*",
+    "lib/**/*",
+    "config/**/*",
+    "types/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "bin",
-    "lib",
-    "config"
+    "bin"
   ]
 }
