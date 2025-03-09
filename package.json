@@ -23,10 +23,10 @@
     "@apollo/server": "^4.9.5",
     "@as-integrations/aws-lambda": "^3.1.0",
     "@prisma/client": "^5.7.1",
-    "apollo-server-core": "^3.13.0",
-    "dataloader": "^2.2.3",
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0",
+    "dataloader": "^2.2.2",
     "graphql": "^16.8.1",
-    "graphql-scalars": "^1.22.4",
     "typescript": "^5.3.3"
   },
   "devDependencies": {

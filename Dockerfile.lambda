@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copiar archivos de dependencias
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY api/prisma ./prisma/
 
 # Instalar dependencias
 RUN npm install

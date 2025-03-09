@@ -3,9 +3,12 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
+# Instalar dependencias del sistema
+RUN apk add --no-cache openssl openssl-dev
+
 # Copiar archivos de dependencias
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY api/prisma ./prisma/
 
 # Instalar dependencias
 RUN npm install
@@ -23,6 +26,9 @@ RUN npm run build
 FROM node:18-alpine
 
 WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apk add --no-cache openssl openssl-dev
 
 # Copiar archivos necesarios de la etapa de construcción
 COPY --from=builder /app/dist ./dist

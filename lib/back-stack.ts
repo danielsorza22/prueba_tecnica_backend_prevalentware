@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { Stack, StackProps } from 'aws-cdk-lib';
+import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Environment } from '@/types';
 import { APIGateway } from '@/lib/services/APIGateway';
@@ -13,12 +13,18 @@ import { SecretsManager } from '@/lib/services/SecretsManager';
 import { VPC } from '@/lib/services/VPC';
 import { APP_NAME, BUCKETS, PROJECT } from '@/config';
 
-export class BackStack extends Stack {
+interface BucketInput {
+  name: string;
+  versioned?: boolean;
+  lifecycleRules?: cdk.aws_s3.LifecycleRule[];
+}
+
+export class BackStack extends cdk.Stack {
   deployEnvironment: Environment;
   constructor(
     scope: Construct,
     id: string,
-    props?: StackProps,
+    props?: cdk.StackProps,
     env?: Environment | undefined
   ) {
     super(scope, id, props);
@@ -62,7 +68,15 @@ export class BackStack extends Stack {
       );
     }
 
-    // Creando buckets públicos y privado y encontrando cual es el privado
+    // Convertir el objeto BUCKETS en un array de BucketInput
+    const bucketInputs: BucketInput[] = Object.entries(BUCKETS).map(([key, value]) => ({
+      name: value,
+      versioned: true,
+    }));
+
+    // Crear los buckets
+    this.createBuckets(bucketInputs);
+
     const s3 = new S3(this, `${id}-s3`);
     const buckets = s3.buildS3Array(BUCKETS, this.deployEnvironment);
     const privateBucket = buckets.find((bucket) => !bucket.isPublic)?.bucket;
@@ -91,5 +105,17 @@ export class BackStack extends Stack {
     //   );
     //   const ecsService = fargate.buildECSFargateService(ecsCluster, fargateTaskDefinition, vpc);
     // }
+  }
+
+  private createBuckets(buckets: BucketInput[]) {
+    buckets.forEach((bucket) => {
+      new cdk.aws_s3.Bucket(this, `${bucket.name}-bucket`, {
+        bucketName: bucket.name,
+        versioned: bucket.versioned,
+        lifecycleRules: bucket.lifecycleRules,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+        autoDeleteObjects: true,
+      });
+    });
   }
 }
