@@ -264,78 +264,100 @@ export const resolvers = {
           throw new AuthenticationError('User not authenticated');
         }
 
-        // Solo administradores pueden acceder a esta información
         if (context.user.Role.name !== 'Admin') {
           throw new AuthorizationError('Only administrators can access this information');
         }
 
-        // Convertir fechas string a Date
         const startDate = new Date(args.startDate);
         const endDate = new Date(args.endDate);
 
-        // Validar fechas
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           throw new Error('Invalid date format');
         }
 
-        // Verificar que el país existe
-        const country = await context.prisma.country.findUnique({
-          where: { id: args.countryId }
-        });
+        // Consulta SQL corregida con el orden correcto de los parámetros
+        const rawQuery = `
+          WITH UserCounts AS (
+            SELECT 
+              u.id,
+              u.email,
+              u.name,
+              u.position,
+              u."createdAt",
+              u."updatedAt",
+              u."roleId",
+              r.name as role_name,
+              COUNT(um.id) as monitoring_count
+            FROM "User" u
+            INNER JOIN "_CountryToUser" cu ON u.id = cu."B"
+            INNER JOIN "Role" r ON u."roleId" = r.id
+            LEFT JOIN "UserMonitoring" um ON u.id = um."userId"
+            WHERE 
+              cu."A" = $1                    -- countryId
+              AND um.description = $2        -- monitoringType
+              AND um."createdAt" >= $3      -- startDate
+              AND um."createdAt" <= $4      -- endDate
+            GROUP BY 
+              u.id, u.email, u.name, u.position, 
+              u."createdAt", u."updatedAt", u."roleId", r.name
+            ORDER BY monitoring_count DESC
+            LIMIT 3
+          )
+          SELECT 
+            id, 
+            email, 
+            name, 
+            position, 
+            "createdAt", 
+            "updatedAt",
+            "roleId", 
+            role_name,
+            monitoring_count
+          FROM UserCounts
+          WHERE monitoring_count > 0;
+        `;
 
-        if (!country) {
-          throw new Error('Country not found');
+        // Asegurarnos de que todos los parámetros estén presentes y en el orden correcto
+        const params = [
+          args.countryId,        // $1
+          args.monitoringType,   // $2
+          startDate,            // $3
+          endDate              // $4
+        ];
+
+        try {
+          const results = await context.prisma.$queryRawUnsafe<Array<{
+            id: string;
+            email: string;
+            name: string | null;
+            position: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            roleId: string | null;
+            role_name: string;
+            monitoring_count: string;
+          }>>(rawQuery, ...params);
+
+          // Formatear los resultados
+          return results.map(row => ({
+            user: {
+              id: row.id,
+              email: row.email,
+              name: row.name,
+              position: row.position,
+              createdAt: formatDate(row.createdAt),
+              updatedAt: formatDate(row.updatedAt),
+              roleId: row.roleId,
+              Role: {
+                name: row.role_name
+              }
+            },
+            monitoringCount: parseInt(row.monitoring_count)
+          }));
+        } catch (error) {
+          console.error('Error en la consulta SQL:', error);
+          throw error;
         }
-
-        // Obtener usuarios con conteo de registros de monitoreo específico
-        const usersWithMonitoring = await context.prisma.user.findMany({
-          where: {
-            Country: {
-              some: {
-                id: args.countryId
-              }
-            }
-          },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            position: true,
-            createdAt: true,
-            updatedAt: true,
-            roleId: true,
-            Role: true,
-            _count: {
-              select: {
-                UserMonitoring: {
-                  where: {
-                    description: args.monitoringType,
-                    createdAt: {
-                      gte: startDate,
-                      lte: endDate
-                    }
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            UserMonitoring: {
-              _count: 'desc'
-            }
-          },
-          take: 3
-        });
-
-        // Formatear la respuesta
-        return usersWithMonitoring.map(user => ({
-          user: {
-            ...user,
-            createdAt: formatDate(user.createdAt),
-            updatedAt: formatDate(user.updatedAt)
-          },
-          monitoringCount: user._count.UserMonitoring
-        }));
       },
       'topUsersByTypeAndCountry',
       'Query'
