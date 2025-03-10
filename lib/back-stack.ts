@@ -70,15 +70,13 @@ export class BackStack extends cdk.Stack {
 
     // Convertir el objeto BUCKETS en un array de BucketInput
     const bucketInputs: BucketInput[] = Object.entries(BUCKETS).map(([_, value]) => ({
-      name: value as string,
-      versioned: true,
+      name: value,
+      versioned: true
     }));
 
     // Crear los buckets
-    this.createBuckets(bucketInputs);
-
     const s3 = new S3(this, `${id}-s3`);
-    const buckets = s3.buildS3Array(BUCKETS, this.deployEnvironment);
+    const buckets = s3.buildS3Array(bucketInputs, this.deployEnvironment);
     const privateBucket = buckets.find((bucket) => !bucket.isPublic)?.bucket;
 
     const lambda = new Lambda(this, `${id}-lambda`).buildServerLambda(

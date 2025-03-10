@@ -1,6 +1,6 @@
 import { ApolloServer } from '@apollo/server';
 import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
-import { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context as LambdaContext } from 'aws-lambda';
 import { typeDefs, resolvers } from '../models';
 import { Context } from '../types';
 import { PrismaClient } from '@prisma/client';
@@ -14,13 +14,13 @@ const server = new ApolloServer<Context>({
   resolvers,
 });
 
-// Crear el handler para Lambda
+// Create the Lambda handler
 export const handler = startServerAndCreateLambdaHandler(
   server,
   handlers.createAPIGatewayProxyEventV2RequestHandler(),
   {
     context: async ({ event }) => {
-      // Crear el contexto base con prisma y loaders
+      // Create base context with prisma and loaders
       const context: Context = {
         prisma,
         loaders: {
@@ -28,18 +28,17 @@ export const handler = startServerAndCreateLambdaHandler(
         }
       };
 
-      // Extraer el token del header
-      const token = event.headers?.authorization || '';
-      if (!token) {
-        return context;
-      }
-
       try {
-        // Obtener la sesión usando la función getSession
-        const session = await getSession(prisma, token);
-        if (session) {
-          context.session = session;
-          context.user = session.User;
+        // Extract token from header
+        const token = event.headers?.authorization || '';
+        
+        if (token) {
+          // Get session using getSession function
+          const session = await getSession(prisma, token);
+          if (session) {
+            context.session = session;
+            context.user = session.User;
+          }
         }
       } catch (error) {
         console.error('Error getting session:', error);

@@ -1,6 +1,7 @@
 # Etapa de construcción
 FROM node:18-alpine as builder
 
+# Establecer directorio de trabajo
 WORKDIR /app
 
 # Instalar dependencias del sistema
@@ -13,10 +14,10 @@ COPY api/prisma ./prisma/
 # Instalar dependencias
 RUN npm install
 
-# Copiar código fuente
+# Copiar el resto del código
 COPY . .
 
-# Generar Prisma Client
+# Generar cliente de Prisma
 RUN npx prisma generate
 
 # Compilar TypeScript
@@ -25,12 +26,13 @@ RUN npm run build
 # Etapa de producción
 FROM node:18-alpine
 
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema
+# Instalar OpenSSL en la imagen de producción
 RUN apk add --no-cache openssl openssl-dev
 
-# Copiar archivos necesarios de la etapa de construcción
+# Copiar archivos compilados y dependencias
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
@@ -43,5 +45,5 @@ ENV PORT=4000
 # Exponer puerto
 EXPOSE 4000
 
-# Comando de inicio
-CMD ["node", "dist/docker/server.js"] 
+# Comando para iniciar el servidor
+CMD ["node", "dist/api/src/index.js"] 

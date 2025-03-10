@@ -59,7 +59,13 @@ export const monitoringResolvers = {
         const totalCount = await context.prisma.userMonitoring.count({ where });
         const items = await context.prisma.userMonitoring.findMany({
           where,
-          include: { User: true },
+          include: { 
+            User: {
+              include: {
+                Role: true
+              }
+            }
+          },
           orderBy: { createdAt: 'desc' },
           skip,
           take: pageSize
@@ -67,7 +73,8 @@ export const monitoringResolvers = {
 
         const formattedItems = items.map(record => ({
           ...record,
-          createdAt: formatDate(record.createdAt)
+          createdAt: formatDate(record.createdAt),
+          user: record.User // Aseguramos que el campo user esté presente
         }));
 
         return {
@@ -116,6 +123,19 @@ export const monitoringResolvers = {
             updatedAt: true,
             roleId: true,
             Role: true,
+            UserMonitoring: {
+              where: {
+                createdAt: {
+                  gte: startDate,
+                  lte: endDate
+                }
+              },
+              select: {
+                id: true,
+                description: true,
+                createdAt: true
+              }
+            },
             _count: {
               select: {
                 UserMonitoring: {
@@ -137,16 +157,15 @@ export const monitoringResolvers = {
           take: 3
         });
 
-        const items = usersWithCount.map(user => ({
+        return usersWithCount.map(user => ({
           user: {
             ...user,
-            createdAt: formatDate(user.createdAt),
-            updatedAt: formatDate(user.updatedAt)
+            monitoring: user.UserMonitoring,
+            createdAt: user.createdAt instanceof Date ? formatDate(user.createdAt) : user.createdAt,
+            updatedAt: user.updatedAt instanceof Date ? formatDate(user.updatedAt) : user.updatedAt
           },
           monitoringCount: user._count.UserMonitoring
         }));
-
-        return items;
       },
       'topUsersWithMonitoring',
       'Query'

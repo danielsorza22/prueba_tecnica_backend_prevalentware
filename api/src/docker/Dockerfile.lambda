@@ -1,34 +1,33 @@
 # Etapa de construcción
 FROM public.ecr.aws/lambda/nodejs:18 as builder
 
+# Establecer directorio de trabajo
 WORKDIR /app
 
 # Copiar archivos de dependencias
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY api/prisma ./prisma/
 
 # Instalar dependencias
 RUN npm install
 
-# Copiar código fuente
+# Copiar el resto del código
 COPY . .
 
 # Generar cliente de Prisma
 RUN npx prisma generate
 
-# Construir la aplicación
+# Compilar TypeScript
 RUN npm run build
 
 # Etapa de producción
 FROM public.ecr.aws/lambda/nodejs:18
 
-WORKDIR ${LAMBDA_TASK_ROOT}
+# Copiar archivos compilados y dependencias
+COPY --from=builder /app/dist/api/src ${LAMBDA_TASK_ROOT}
+COPY --from=builder /app/node_modules ${LAMBDA_TASK_ROOT}/node_modules
+COPY --from=builder /app/package*.json ${LAMBDA_TASK_ROOT}/
+COPY --from=builder /app/prisma ${LAMBDA_TASK_ROOT}/prisma
 
-# Copiar archivos necesarios desde la etapa de construcción
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
-
-# Comando para Lambda
-CMD ["dist/aws/lambda.handler"] 
+# Configurar el handler de Lambda
+CMD ["aws/lambda.handler"] 

@@ -121,9 +121,18 @@ export const userResolvers = {
     },
 
     // Formatear campos de fecha
-    createdAt: (parent: any) => formatDate(parent.createdAt),
-    updatedAt: (parent: any) => formatDate(parent.updatedAt),
-    lastLogin: (parent: any) => formatDate(parent.lastLogin),
+    createdAt: (parent: any) => {
+      if (typeof parent.createdAt === 'string') return parent.createdAt;
+      return formatDate(parent.createdAt);
+    },
+    updatedAt: (parent: any) => {
+      if (typeof parent.updatedAt === 'string') return parent.updatedAt;
+      return formatDate(parent.updatedAt);
+    },
+    lastLogin: (parent: any) => {
+      if (typeof parent.lastLogin === 'string') return parent.lastLogin;
+      return formatDate(parent.lastLogin);
+    },
 
     // Resolver para el campo countries
     countries: async (parent: any, _args: any, context: Context) => {

@@ -1,5 +1,188 @@
 # GraphQL API Backend con Apollo Server y AWS CDK
 
+## Guía Rápida de Inicio
+
+### 1. Preparación del Entorno
+Antes de comenzar, asegúrate de tener instalado:
+- Node.js 18 o superior
+- Docker Desktop
+- PostgreSQL
+- Un editor de código (recomendado: cursor)
+
+### 2. Configuración Inicial
+1. Clona el repositorio:
+```bash
+git clone <url-del-repositorio>
+cd prueba-tecnica-backend-prevalentware
+```
+
+2. Instala las dependencias:
+```bash
+npm install
+```
+
+3. Configura las variables de entorno:
+```bash
+cp .env.example .env
+```
+Edita el archivo `.env` con tus credenciales de base de datos:
+```env
+DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/nombre_db"
+```
+
+4. Genera el cliente Prisma:
+```bash
+npx prisma generate
+```
+
+5. Inicia el servidor en modo desarrollo:
+```bash
+npm run dev
+```
+El servidor estará disponible en: http://localhost:4000
+
+### 3. Probando la API
+
+#### Herramientas Recomendadas
+- Apollo Studio (accesible desde http://localhost:4000)
+- Insomnia
+- Postman
+
+#### Autenticación
+Todas las peticiones requieren un token de autenticación en los headers:
+```json
+{
+  "Authorization": "Bearer <token>"
+}
+```
+
+#### Ejemplos de Queries por Rol
+
+1. **User** (acceso limitado a sus datos)
+```graphql
+query MyProfile {
+  me {
+    id
+    name
+    email
+    countries {
+      id
+      name
+    }
+  }
+}
+```
+
+2. **Manager** (acceso a datos de usuarios)
+```graphql
+query GetUsers {
+  users(skip: 0, take: 10) {
+    id
+    name
+    email
+    role
+  }
+}
+```
+
+3. **Admin** (acceso completo)
+```graphql
+query MonitoringStats {
+  topUsersByTypeAndCountry(
+    monitoringType: signIn
+    countryId: 1
+    startDate: "2024-03-01"
+    endDate: "2024-03-09"
+  ) {
+    user {
+      id
+      name
+    }
+    count
+  }
+}
+```
+
+#### Paginación
+La API implementa paginación tipo offset. Usa los parámetros:
+- `skip`: Número de registros a saltar
+- `take`: Número de registros a retornar
+
+Ejemplo:
+```graphql
+query PaginatedUsers {
+  users(skip: 0, take: 5) {
+    id
+    name
+    email
+  }
+}
+```
+
+### 4. Ejecutando con Docker
+
+#### Versión ECS (Apollo Server)
+```bash
+# Construir imagen
+docker build -t my-graphql-api:ecs .
+
+# Ejecutar contenedor
+docker run -d --name api-ecs -p 4000:4000 my-graphql-api:ecs
+```
+
+#### Versión Lambda
+```bash
+# Construir imagen
+docker build -t my-graphql-api:lambda -f Dockerfile.lambda .
+
+# Ejecutar contenedor
+docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
+```
+
+### 5. Control de Acceso (RBAC)
+
+La API implementa tres niveles de acceso:
+
+1. **User**
+   - Solo puede ver sus propios datos
+   - Acceso a sus países asociados
+   - Acceso limitado a su monitoreo
+
+2. **Manager**
+   - Puede ver datos de todos los usuarios
+   - Acceso a todos los países
+   - No puede ver datos de monitoreo
+
+3. **Admin**
+   - Acceso completo a todos los endpoints
+   - Sin restricciones de consulta
+
+Si intentas acceder a datos no autorizados para tu rol, recibirás un error de autorización.
+
+### 6. Propuesta de Despliegue
+
+#### Ambientes
+
+1. **Desarrollo**
+   - URL: `https://dev-api.tudominio.com/graphql`
+   - Se despliega automáticamente con pushes a rama `develop`
+   - Ideal para pruebas y QA
+
+2. **Producción**
+   - URL: `https://api.tudominio.com/graphql`
+   - Se despliega con pushes a rama `main`
+   - Requiere aprobación manual
+   - Incluye pruebas de seguridad
+
+
+### 7. Pruebas
+
+Para ejecutar las pruebas unitarias:
+```bash
+npm test
+```
+
+
 ## Descripción General
 Este proyecto implementa una API GraphQL robusta y escalable utilizando un stack tecnológico moderno. La solución está diseñada para manejar monitoreo de usuarios, autenticación basada en tokens, y control de acceso basado en roles (RBAC), con soporte para despliegue tanto en AWS Lambda como en ECS.
 
@@ -27,17 +210,17 @@ Se implementó un sistema de autenticación basado en tokens utilizando la carpe
 #### Control de Acceso Basado en Roles (RBAC)
 Se implementaron tres niveles de acceso:
 
-1. **Usuario Regular (User)**:
+1. **User**:
    - Acceso limitado a sus propios datos
    - Puede ver sus países asociados
    - Puede acceder a su información de monitoreo (UserMonitoring)
 
-2. **Gerente (Manager)**:
+2. **Manager**:
    - Acceso a datos de todos los usuarios
    - Acceso a información de todos los países
    - No tiene acceso a datos de UserMonitoring
 
-3. **Administrador (Admin)**:
+3. **Admin**:
    - Acceso completo a todos los datos
    - Puede ver información de todos los usuarios
    - Acceso a todos los datos de monitoreo
@@ -76,154 +259,4 @@ Se configuró Jest como framework de testing por:
 - **Mocking Robusto**: Facilidad para simular dependencias
 - **Cobertura**: Herramientas integradas de coverage
 - **Sintaxis Clara**: Describe/it para tests legibles
-
-## Configuración y Ejecución
-
-### Requisitos Previos
-- Node.js 18 o superior
-- Docker Desktop
-- PostgreSQL (para desarrollo local)
-
-### Desarrollo Local
-1. Instalar dependencias:
-```bash
-npm install
-```
-
-2. Configurar variables de entorno:
-```bash
-cp .env.example .env
-# Editar .env con tus credenciales
-```
-
-3. Generar Prisma Client:
-```bash
-npx prisma generate
-```
-
-4. Ejecutar en modo desarrollo:
-```bash
-npm run dev
-```
-
-### Ejecución con Docker
-
-#### ECS (Desarrollo/Producción)
-```bash
-# Construir imagen
-docker build -t my-graphql-api:ecs .
-
-# Ejecutar contenedor
-docker run -d --name api-ecs -p 4000:4000 my-graphql-api:ecs
-```
-
-#### Lambda (Serverless)
-```bash
-# Construir imagen
-docker build -t my-graphql-api:lambda -f Dockerfile.lambda .
-
-# Ejecutar contenedor
-docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
-```
-
-### Pruebas
-```bash
-# Ejecutar tests
-npm test
-
-# Ver cobertura
-npm run test:coverage
-```
-
-## Estrategia de Despliegue
-
-### Infraestructura AWS
-El proyecto utiliza AWS CDK para definir y desplegar la infraestructura como código, incluyendo:
-- VPC y Security Groups
-- RDS para PostgreSQL
-- ECS Cluster (opcional)
-- Lambda Functions
-- API Gateway
-- Secrets Manager
-
-### Pipeline de Despliegue
-1. **Desarrollo**:
-   - Trigger: Push a rama `dev`
-   - Despliegue automático a ambiente de desarrollo
-
-2. **Producción**:
-   - Trigger: Push a rama `main`
-   - Despliegue automático a ambiente de producción
-   - Validaciones adicionales de seguridad
-
-### Monitoreo y Logs
-- CloudWatch para logs y métricas
-- X-Ray para tracing (opcional)
-- Alertas configurables por ambiente
-
-## Endpoints GraphQL
-
-### Producción
-- ECS: `https://api.tudominio.com/graphql`
-- Lambda: `https://api.tudominio.com/dev/graphql`
-
-### Desarrollo
-- Local: `http://localhost:4000`
-- Docker: `http://localhost:4000` (ECS) o `http://localhost:9000` (Lambda)
-
-## Ejemplos de Uso
-
-### Autenticación en Queries
-```graphql
-# Header requerido para todas las peticiones
-{
-  "Authorization": "Bearer <token>"
-}
-
-# Query de ejemplo para un usuario regular
-query MyData {
-  me {
-    id
-    name
-    email
-    countries {
-      id
-      name
-    }
-    monitoring {
-      type
-      createdAt
-    }
-  }
-}
-
-# Query de ejemplo para un manager
-query AllUsers {
-  users {
-    id
-    name
-    email
-    countries {
-      id
-      name
-    }
-  }
-}
-
-# Query de ejemplo para un admin
-query MonitoringData {
-  topUsersByTypeAndCountry(
-    monitoringType: signIn
-    countryId: 1
-    startDate: "2024-03-01"
-    endDate: "2024-03-09"
-  ) {
-    user {
-      id
-      name
-    }
-    count
-  }
-}
-```
 

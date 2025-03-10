@@ -17,7 +17,8 @@
     "lint": "eslint \"./**/*.ts\"",
     "lint:fix": "eslint \"./**/*.ts\" --fix",
     "generate": "prisma generate",
-    "prisma:introspect": "prisma introspect"
+    "prisma:introspect": "prisma introspect",
+    "test:lambda": "ts-node api/src/test/lambda-test.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.9.5",
