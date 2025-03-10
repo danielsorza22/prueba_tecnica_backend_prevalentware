@@ -1,125 +1,93 @@
-# GraphQL API Backend con Apollo Server y AWS CDK
+# GraphQL API Backend - Prueba Técnica
 
-## Guía Rápida de Inicio
+## Decisiones Técnicas y Arquitectura
 
-### 1. Preparación del Entorno
-Antes de comenzar, asegúrate de tener instalado:
-- Node.js 18 o superior
-- Docker Desktop
-- PostgreSQL
-- Un editor de código (recomendado: cursor)
+### 1. Autenticación y Autorización
 
-### 2. Configuración Inicial
-1. Clona el repositorio:
-```bash
-git clone <url-del-repositorio>
-cd prueba-tecnica-backend-prevalentware
+El proyecto se construyó sobre el boiler de Prevalentware, aprovechando su robusto sistema de autenticación ubicado en `api/src/auth`. Esta decisión se justifica por:
+
+- **Seguridad**: Implementa JWT con manejo seguro de sesiones y tokens
+- **Escalabilidad**: Arquitectura modular que permite agregar nuevos métodos de autenticación
+- **Control de Acceso**: Sistema RBAC (Role-Based Access Control) que permite gestionar permisos por rol
+- **Middleware Reutilizable**: El decorador `withSessionCheck` facilita la protección de resolvers
+
+### 2. Queries Principales
+
+El sistema implementa los siguientes queries GraphQL (acceso restringido según rol):
+
+- **users**: Lista paginada de usuarios con acceso controlado por rol
+- **userByEmail**: Busca usuario específico por email 
+- **countries**: Lista países disponibles en el sistema
+- **topUsersByTypeAndCountry**: Estadísticas de usuarios por tipo de monitoreo y país
+- **topUsersWithMonitoring**: Top 3 usuarios con más registros de monitoreo
+- **userMonitoringByDate**: Registros de monitoreo filtrados por fecha con paginación
+
+### 3. Manejo de Errores
+
+Implementación robusta de errores mediante:
+
+```typescript
+- AuthenticationError: Errores de autenticación (token inválido/expirado)
+- AuthorizationError: Errores de permisos (rol inadecuado)
+- ValidationError: Errores de datos de entrada
 ```
 
-2. Instala las dependencias:
-```bash
-npm install
-```
+Los errores son capturados y formateados para proporcionar respuestas consistentes al cliente.
 
-3. Configura las variables de entorno:
-```bash
-cp .env.example .env
-```
-Edita el archivo `.env` con tus credenciales de base de datos:
-```env
-DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/nombre_db"
-```
+### 4. Sistema de Paginación
 
-4. Genera el cliente Prisma:
-```bash
-npx prisma generate
-```
+Implementación de paginación tipo "offset" con:
 
-5. Inicia el servidor en modo desarrollo:
-```bash
-npm run dev
-```
-El servidor estará disponible en: http://localhost:4000
+```typescript
+type PaginationInput {
+  page: Int
+  pageSize: Int
+}
 
-### 3. Probando la API
-
-#### Herramientas Recomendadas
-- Apollo Studio (accesible desde http://localhost:4000)
-- Insomnia
-- Postman
-
-#### Autenticación
-Todas las peticiones requieren un token de autenticación en los headers:
-```json
-{
-  "Authorization": "Bearer <token>"
+type PageInfo {
+  totalCount: Int
+  currentPage: Int
+  totalPages: Int
+  hasNextPage: Boolean
+  hasPreviousPage: Boolean
 }
 ```
 
-#### Ejemplos de Queries por Rol
-
-1. **User** (acceso limitado a sus datos)
+Ejemplo de uso:
 ```graphql
-query MyProfile {
-  me {
-    id
-    name
-    email
-    countries {
-      id
-      name
-    }
+query {
+  users(pagination: { page: 1, pageSize: 10 }) {
+    items { ... }
+    pageInfo { ... }
   }
 }
 ```
 
-2. **Manager** (acceso a datos de usuarios)
-```graphql
-query GetUsers {
-  users(skip: 0, take: 10) {
-    id
-    name
-    email
-    role
-  }
-}
-```
+### 5. Optimización de Consultas
 
-3. **Admin** (acceso completo)
-```graphql
-query MonitoringStats {
-  topUsersByTypeAndCountry(
-    monitoringType: signIn
-    countryId: 1
-    startDate: "2024-03-01"
-    endDate: "2024-03-09"
-  ) {
-    user {
-      id
-      name
-    }
-    count
-  }
-}
-```
+El resolver `topUsersByTypeAndCountry` utiliza SQL nativo en lugar de Prisma por razones de rendimiento:
 
-#### Paginación
-La API implementa paginación tipo offset. Usa los parámetros:
-- `skip`: Número de registros a saltar
-- `take`: Número de registros a retornar
+- **Joins Optimizados**: SQL permite optimizar los joins entre tablas
+- **Agregaciones Eficientes**: Mejor rendimiento en operaciones COUNT y GROUP BY
+- **Índices**: Aprovechamiento directo de índices de base de datos
+- **Memoria**: Menor consumo de memoria al procesar grandes conjuntos de datos
 
-Ejemplo:
-```graphql
-query PaginatedUsers {
-  users(skip: 0, take: 5) {
-    id
-    name
-    email
-  }
-}
-```
+### 6. Pruebas Unitarias
 
-### 4. Ejecutando con Docker
+Implementación de pruebas con Jest:
+
+```bash
+# Ejecutar pruebas
+npm test
+
+
+Las pruebas cubren:
+- Resolvers GraphQL
+- Middleware de autenticación
+- Lógica de negocio
+- Control de acceso
+
+### 7. Containerización
 
 #### Versión ECS (Apollo Server)
 ```bash
@@ -139,124 +107,33 @@ docker build -t my-graphql-api:lambda -f Dockerfile.lambda .
 docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
 ```
 
-### 5. Control de Acceso (RBAC)
+### 8. Propuesta de Despliegue
 
-La API implementa tres niveles de acceso:
+La arquitectura propuesta utiliza:
 
-1. **User**
-   - Solo puede ver sus propios datos
-   - Acceso a sus países asociados
-   - Acceso limitado a su monitoreo
+1. **Infraestructura AWS**:
+   - ECS Fargate para la versión containerizada
+   - Lambda + API Gateway para la versión serverless
+   - RDS PostgreSQL para la base de datos
+   - CloudWatch para logs y monitoreo
 
-2. **Manager**
-   - Puede ver datos de todos los usuarios
-   - Acceso a todos los países
-   - No puede ver datos de monitoreo
+2. **CI/CD Pipeline**:
+   - GitHub Actions para automatización
+   - Tests automáticos en PRs
+   - Despliegue automático a staging
+   - Despliegue manual a producción
 
-3. **Admin**
-   - Acceso completo a todos los endpoints
-   - Sin restricciones de consulta
+3. **Monitoreo y Escalado**:
+   - Auto-scaling basado en demanda
+   - Alertas de rendimiento
+   - Backup automático de datos
 
-Si intentas acceder a datos no autorizados para tu rol, recibirás un error de autorización.
+## Inicio Rápido
 
-### 6. Propuesta de Despliegue
+1. Clonar el repositorio
+2. Instalar dependencias: `npm install`
+3. Configurar variables de entorno: `.env`
+4. Generar cliente Prisma: `npx prisma generate`
+5. Iniciar en desarrollo: `npm run dev`
 
-#### Ambientes
-
-1. **Desarrollo**
-   - URL: `https://dev-api.tudominio.com/graphql`
-   - Se despliega automáticamente con pushes a rama `develop`
-   - Ideal para pruebas y QA
-
-2. **Producción**
-   - URL: `https://api.tudominio.com/graphql`
-   - Se despliega con pushes a rama `main`
-   - Requiere aprobación manual
-   - Incluye pruebas de seguridad
-
-
-### 7. Pruebas
-
-Para ejecutar las pruebas unitarias:
-```bash
-npm test
-```
-
-
-## Descripción General
-Este proyecto implementa una API GraphQL robusta y escalable utilizando un stack tecnológico moderno. La solución está diseñada para manejar monitoreo de usuarios, autenticación basada en tokens, y control de acceso basado en roles (RBAC), con soporte para despliegue tanto en AWS Lambda como en ECS.
-
-## Stack Tecnológico
-- **Node.js**: Runtime de JavaScript para el backend
-- **Apollo Server**: Framework GraphQL para Node.js
-- **Prisma**: ORM moderno para TypeScript/Node.js
-- **PostgreSQL**: Sistema de gestión de base de datos relacional
-- **TypeScript**: Superset tipado de JavaScript
-- **Docker**: Containerización de aplicaciones
-- **Jest**: Framework de pruebas unitarias
-- **AWS CDK**: Infrastructure as Code para AWS
-
-## Decisiones Arquitectónicas
-
-### Autenticación y Autorización
-Se implementó un sistema de autenticación basado en tokens utilizando la carpeta `auth/`, siguiendo la estructura del boilerplate de PrevalentWare. Esta decisión se tomó por:
-
-#### Sistema de Tokens
-- **Validación de Sesión**: Cada request GraphQL requiere un token en los headers que se valida contra la tabla `Session`
-- **Recuperación de Usuario**: El token se utiliza para obtener el usuario asociado y su rol
-- **Persistencia**: Los tokens no tienen fecha de expiración para propósitos de prueba
-- **Seguridad**: Manejo seguro de sesiones existentes (no se crean nuevos tokens)
-
-#### Control de Acceso Basado en Roles (RBAC)
-Se implementaron tres niveles de acceso:
-
-1. **User**:
-   - Acceso limitado a sus propios datos
-   - Puede ver sus países asociados
-   - Puede acceder a su información de monitoreo (UserMonitoring)
-
-2. **Manager**:
-   - Acceso a datos de todos los usuarios
-   - Acceso a información de todos los países
-   - No tiene acceso a datos de UserMonitoring
-
-3. **Admin**:
-   - Acceso completo a todos los datos
-   - Puede ver información de todos los usuarios
-   - Acceso a todos los datos de monitoreo
-   - Sin restricciones en consultas
-
-#### Implementación Técnica
-- Middleware de autenticación que valida tokens
-- Resolvers protegidos con verificación de roles
-- Filtrado de datos basado en el rol del usuario
-- Manejo de errores específicos para problemas de autenticación/autorización
-
-### Optimización de Queries
-#### SQL Raw para TopUsers
-El resolver `topUsersByTypeAndCountry` se implementó usando SQL raw por:
-- **Eficiencia**: Reduce múltiples queries a una sola consulta SQL optimizada
-- **Rendimiento**: Evita el problema N+1 común en GraphQL
-- **Escalabilidad**: Mejor manejo de grandes conjuntos de datos
-
-#### DataLoader para Resolvers de Campo
-Se implementó DataLoader para optimizar las consultas relacionadas, específicamente en:
-- Carga de roles de usuario
-- Relaciones many-to-one
-Beneficios:
-- **Batch Loading**: Agrupa múltiples solicitudes en una sola query
-- **Caching**: Almacena en caché los resultados durante el ciclo de vida de la request
-- **Reducción de Queries**: Minimiza el número de consultas a la base de datos
-
-### Paginación
-Se implementó paginación offset-based para las queries que retornan listas:
-- **Flexibilidad**: Soporte para skip/take
-- **Consistencia**: Resultados predecibles y ordenados
-- **Performance**: Límites configurables para prevenir sobrecarga
-
-### Pruebas Unitarias
-Se configuró Jest como framework de testing por:
-- **Mocking Robusto**: Facilidad para simular dependencias
-- **Cobertura**: Herramientas integradas de coverage
-- **Sintaxis Clara**: Describe/it para tests legibles
 
