@@ -27,6 +27,7 @@
     "aws-cdk-lib": "^2.0.0",
     "constructs": "^10.0.0",
     "dataloader": "^2.2.2",
+    "dotenv": "^16.4.7",
     "graphql": "^16.10.0",
     "graphql-tag": "^2.12.6",
     "typescript": "^5.3.3"

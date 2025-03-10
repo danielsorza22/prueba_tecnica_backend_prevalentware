@@ -77,15 +77,11 @@ El resolver `topUsersByTypeAndCountry` utiliza SQL nativo en lugar de Prisma por
 Implementación de pruebas con Jest:
 
 ```bash
-# Ejecutar pruebas
+# Ejecutar pruebas unitarias
+
 npm test
 
-
-Las pruebas cubren:
-- Resolvers GraphQL
-- Middleware de autenticación
-- Lógica de negocio
-- Control de acceso
+```
 
 ### 7. Containerización
 
@@ -106,33 +102,11 @@ docker build -t my-graphql-api:lambda -f Dockerfile.lambda .
 # Ejecutar contenedor
 docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
 ```
-
-### 8. Propuesta de Despliegue
-
-La arquitectura propuesta utiliza:
-
-1. **Infraestructura AWS**:
-   - ECS Fargate para la versión containerizada
-   - Lambda + API Gateway para la versión serverless
-   - RDS PostgreSQL para la base de datos
-   - CloudWatch para logs y monitoreo
-
-2. **CI/CD Pipeline**:
-   - GitHub Actions para automatización
-   - Tests automáticos en PRs
-   - Despliegue automático a staging
-   - Despliegue manual a producción
-
-3. **Monitoreo y Escalado**:
-   - Auto-scaling basado en demanda
-   - Alertas de rendimiento
-   - Backup automático de datos
-
 ## Inicio Rápido
 
 1. Clonar el repositorio
 2. Instalar dependencias: `npm install`
-3. Configurar variables de entorno: `.env`
+3. Configurar variables de entorno: `.env` (se comparte por correo, pero solo tiene el string de conexion a BD)
 4. Generar cliente Prisma: `npx prisma generate`
 5. Iniciar en desarrollo: `npm run dev`
 
