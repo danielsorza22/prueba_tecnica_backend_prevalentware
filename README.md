@@ -100,6 +100,10 @@ docker build -t my-graphql-api:ecs -f api/src/docker/Dockerfile.ecs .
 
 # Ejecutar contenedor
 docker run -d --name api-ecs -p 4000:4000 my-graphql-api:ecs
+
+
+#No era necesario pero hice  una prueba del docker tambien probé desde insomia
+Invoke-WebRequest -Method POST -Uri http://localhost:4000/ -Headers @{"Content-Type"="application/json"} -Body '{"query":"query { __typename }"}'
 ```
 
 #### Versión Lambda
@@ -109,4 +113,6 @@ docker build -t my-graphql-api:lambda -f api/src/docker/Dockerfile.lambda .
 
 # Ejecutar contenedor
 docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
-```
+
+#No era necesario pero hice  una prueba del docker con un script y tambien probé desde insomia
+npm run test:lambda 
