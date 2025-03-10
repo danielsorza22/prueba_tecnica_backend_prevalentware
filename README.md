@@ -1,5 +1,13 @@
 # GraphQL API Backend - Prueba Técnica
 
+## Inicio Rápido
+
+1. Clonar el repositorio
+2. Instalar dependencias: `npm install`
+3. Configurar variables de entorno: `.env` (se comparte por correo, pero solo tiene el string de conexion a BD)
+5. Iniciar en desarrollo: `npm run dev`
+
+
 ## Decisiones Técnicas y Arquitectura
 
 ### 1. Autenticación y Autorización
@@ -88,7 +96,7 @@ npm test
 #### Versión ECS (Apollo Server)
 ```bash
 # Construir imagen
-docker build -t my-graphql-api:ecs .
+docker build -t my-graphql-api:ecs -f api/src/docker/Dockerfile.ecs .
 
 # Ejecutar contenedor
 docker run -d --name api-ecs -p 4000:4000 my-graphql-api:ecs
@@ -97,17 +105,8 @@ docker run -d --name api-ecs -p 4000:4000 my-graphql-api:ecs
 #### Versión Lambda
 ```bash
 # Construir imagen
-docker build -t my-graphql-api:lambda -f Dockerfile.lambda .
+docker build -t my-graphql-api:lambda -f api/src/docker/Dockerfile.lambda .
 
 # Ejecutar contenedor
 docker run -d --name api-lambda -p 9000:8080 my-graphql-api:lambda
 ```
-## Inicio Rápido
-
-1. Clonar el repositorio
-2. Instalar dependencias: `npm install`
-3. Configurar variables de entorno: `.env` (se comparte por correo, pero solo tiene el string de conexion a BD)
-4. Generar cliente Prisma: `npx prisma generate`
-5. Iniciar en desarrollo: `npm run dev`
-
-
